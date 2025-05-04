@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React Firebase CRUD</title>
+
+    <!-- Linking external CSS -->
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <!-- React root element -->
+    <div id="root"></div>
+
+    <!-- Axios for HTTP requests -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <!-- React and Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+    <!-- Main React App in JSX (via Babel) -->
+    <script type="text/babel">
+        // Import React hooks
+        const { useState, useEffect } = React;
+
+        function App() {
+            // State variables
+            const [name, setName] = useState("");
+            const [age, setAge] = useState("");
+            const [studentClass, setStudentClass] = useState("");
+            const [students, setStudents] = useState([]);
+            const [editId, setEditId] = useState(null); // ID for editing
+
+            // Fetch student data from Firebase
+            const fetchData = async () => {
+                try {
+                    const res = await axios.get("https://newone-17387-default-rtdb.firebaseio.com/data.json");
+                    const data = res.data || {};
+                    // Convert object of objects into array of objects with ID
+                    const list = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+                    setStudents(list);
+                } catch (err) {
+                    console.error("Fetch error:", err);
+                }
+            };
+
+            // Handle form submission: Add or Update
+            const handlePost = async () => {
+                if (!name || !age || !studentClass) return alert("Please fill all fields");
+
+                const payload = { name, age, class: studentClass };
+
+                try {
+                    if (editId) {
+                        // If editing, send PUT request to update existing entry
+                        await axios.put(`https://newone-17387-default-rtdb.firebaseio.com/data/${editId}.json`, payload);
+                        setEditId(null); // Clear edit mode
+                    } else {
+                        // Otherwise, create new entry with POST
+                        await axios.post("https://newone-17387-default-rtdb.firebaseio.com/data.json", payload);
+                    }
+
+                    // Reset form and refresh data
+                    setName(""); setAge(""); setStudentClass("");
+                    fetchData();
+                } catch (err) {
+                    console.error("Submit error:", err);
+                }
+            };
+
+            // Handle Delete button click
+            const handleDelete = async (id) => {
+                try {
+                    await axios.delete(`https://newone-17387-default-rtdb.firebaseio.com/data/${id}.json`);
+                    fetchData(); // Refresh after delete
+                } catch (err) {
+                    console.error("Delete error:", err);
+                }
+            };
+
+            // Handle Edit button click
+            const handleEdit = (student) => {
+                setEditId(student.id);
+                setName(student.name);
+                setAge(student.age);
+                setStudentClass(student.class);
+            };
+
+            // Fetch data on initial render
+            useEffect(() => {
+                fetchData();
+            }, []);
+
+            return (
+                <div className="container">
+                    <h1>Student CRUD</h1>
+
+                    {/* Form Inputs */}
+                    <div className="form">
+                        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
+                        <input value={age} onChange={(e) => setAge(e.target.value)} placeholder="Age" type="number" />
+                        <input value={studentClass} onChange={(e) => setStudentClass(e.target.value)} placeholder="Class" />
+                        <button onClick={handlePost}>{editId ? "Update" : "Add"}</button>
+                    </div>
+
+                    {/* Student List Display */}
+                    <ul className="student-list">
+                        {students.map((s) => (
+                            <li key={s.id}>
+                                <span>{s.name} - Age: {s.age}, Class: {s.class}</span>
+                                <div>
+                                    <button className="edit" onClick={() => handleEdit(s)}>Edit</button>
+                                    <button className="delete" onClick={() => handleDelete(s.id)}>Delete</button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            );
+        }
+
+        // Render the App component
+        const root = ReactDOM.createRoot(document.getElementById("root"));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
